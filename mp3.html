@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MP3 Converter By GodYew007</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  /* rotating two-colour rim, same as the Smooth drop zone */
+  #drop {
+    position: relative; display: block; border-radius: 20px; padding: 2px; cursor: pointer;
+    background: conic-gradient(from var(--spin), var(--cyan), transparent 25%, transparent 50%, var(--red), transparent 75%, transparent 100%, var(--cyan));
+    animation: spin 6s linear infinite; transition: transform .25s ease, filter .25s ease;
+  }
+  @keyframes spin { to { --spin: 360deg; } }
+  #drop .inner { border-radius: 18px; padding: 40px 16px; text-align: center; background: rgba(8, 8, 13, .93); transition: background .25s ease; }
+  #drop:hover, #drop.over, #drop:focus-within { transform: scale(1.012); filter: drop-shadow(0 0 22px rgba(37, 244, 238, .35)) drop-shadow(0 0 22px rgba(254, 44, 85, .3)); animation-duration: 1.8s; }
+  #drop.over .inner { background: rgba(8, 8, 13, .78); }
+  #drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .icon {
+    width: 58px; height: 58px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .16);
+  }
+  .icon svg { transition: transform .25s ease; }
+  #drop:hover .icon svg, #drop.over .icon svg { transform: translateY(-3px); }
+  #drop strong { display: block; font-size: 21px; font-weight: 600; }
+  #drop span { color: var(--muted); font-size: 14px; font-weight: 300; }
+
+  .rates { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 18px 4px 4px; }
+  .rates h2 { font-size: 14px; font-weight: 500; color: var(--muted); margin: 0; }
+  .seg { display: flex; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); }
+  .seg button {
+    border: 0; background: none; color: var(--muted); font: 500 13px/1 "Prompt", system-ui, sans-serif; padding: 8px 12px; border-radius: 999px; cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .seg button[aria-pressed="true"] { color: #fff; background: linear-gradient(100deg, rgba(37, 244, 238, .3), rgba(254, 44, 85, .3)); }
+
+  #list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  #list:not(:empty) { margin-top: 18px; }
+  .row {
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 12px 14px; border-radius: 16px;
+    background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .1); animation: rise .5s cubic-bezier(.2, .8, .2, 1) both;
+  }
+  .row .n { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .s { grid-column: 1; color: var(--muted); font-size: 13px; font-weight: 300; font-variant-numeric: tabular-nums; }
+  .row .s.ok { color: var(--ok); } .row .s.err { color: var(--err); white-space: pre-line; }
+  .row .act { grid-column: 2; grid-row: 1 / 3; }
+  .row .track { grid-column: 1 / -1; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+  .row .fill { height: 100%; width: 0; border-radius: inherit; transition: width .3s ease; background: linear-gradient(90deg, var(--cyan), #7b5cff, var(--red)); }
+  .row.done .track { display: none; }
+  .mini {
+    display: inline-block; border: 0; cursor: pointer; text-decoration: none; color: #fff; font: 600 14px/1 "Prompt", system-ui, sans-serif;
+    padding: 10px 16px; border-radius: 999px; background: linear-gradient(100deg, #12c9c4, #7b5cff 50%, var(--red)); background-size: 200% 100%;
+    transition: background-position .4s ease;
+  }
+  .mini:hover { background-position: 100% 0; }
+  .mini.ghost { background: rgba(255, 255, 255, .08); }
+  .mini[hidden] { display: none; }
+  #status { margin: 14px 4px 0; }
+  #status:empty { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #drop, .row { animation: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="veil"></div>
+<nav class="nav"><a href="index.html">Smooth</a><a href="download.html">ดาวน์โหลดคลิป</a><a href="mp3.html" aria-current="page">แปลงเป็น MP3</a></nav>
+
+<main>
+  <div class="badge"><i></i>Converter · MP4 → MP3</div>
+  <h1>MP3 Converter</h1>
+  <p class="sub">แปลงคลิปวิดีโอเป็นไฟล์เสียง <b>MP3 สูงสุด 320 kbps</b><br>ลากมาได้หลายไฟล์พร้อมกัน ไม่จำกัดขนาด</p>
+
+  <div class="panel">
+    <label id="drop">
+      <div class="inner">
+        <input type="file" id="file" accept="video/*,audio/*,.mkv,.webm,.flv,.ts" multiple>
+        <div class="icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <strong>วางคลิปที่นี่เพื่อแปลงเป็น MP3</strong>
+        <span>MP4 · MOV · MKV · WEBM · ไฟล์เสียงอื่นๆ — หรือคลิกเพื่อเลือก</span>
+      </div>
+    </label>
+
+    <div class="rates">
+      <h2>คุณภาพเสียง</h2>
+      <div class="seg" id="rates" role="group" aria-label="บิตเรต">
+        <button type="button" data-rate="320" aria-pressed="true">320 kbps</button>
+        <button type="button" data-rate="256" aria-pressed="false">256</button>
+        <button type="button" data-rate="192" aria-pressed="false">192</button>
+        <button type="button" data-rate="128" aria-pressed="false">128</button>
+      </div>
+    </div>
+    <p class="msg" id="status" aria-live="polite"></p>
+    <ul id="list" aria-live="polite"></ul>
+  </div>
+
+  <ul class="pills">
+    <li>MP3 320 kbps</li>
+    <li>แปลงหลายไฟล์ต่อคิว</li>
+    <li>ใส่ชื่อเพลงให้อัตโนมัติ</li>
+    <li>เก็บไว้ในโฟลเดอร์ downloads</li>
+  </ul>
+</main>
+
+<script>
+  // The 3D scene replaces these hooks once it loads; the page works without it.
+  window.fx = { energy() {}, ripple() {} };
+
+  const $ = (id) => document.getElementById(id);
+  const drop = $('drop');
+  const queue = [];
+  let bitrate = 320, running = false;
+
+  const sizeText = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + ' GB' : (n / 1e6).toFixed(1) + ' MB';
+  const clock = (s) => { s = Math.round(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  for (const b of $('rates').querySelectorAll('button')) {
+    b.addEventListener('click', () => {
+      bitrate = +b.dataset.rate;
+      for (const x of $('rates').querySelectorAll('button')) x.setAttribute('aria-pressed', x === b);
+    });
+  }
+
+  function addRow(file) {
+    const li = document.createElement('li');
+    li.className = 'row';
+    li.innerHTML = '<div class="n"></div><div class="s"></div><div class="act"><button class="mini ghost" type="button">ยกเลิก</button><a class="mini" hidden>บันทึก MP3</a></div><div class="track"><div class="fill"></div></div>';
+    li.querySelector('.n').textContent = file.name;
+    $('list').prepend(li);
+    const item = { file, bitrate, li, jobId: null, xhr: null, cancelled: false };
+    const set = (kind, text, pct) => {
+      const s = li.querySelector('.s'); s.className = 's ' + kind; s.textContent = text;
+      if (pct != null) li.querySelector('.fill').style.width = pct * 100 + '%';
+    };
+    item.set = set;
+    set('', `รอคิว · ${sizeText(file.size)} · ${item.bitrate} kbps`, 0);
+    li.querySelector('button').addEventListener('click', () => {
+      item.cancelled = true;
+      if (item.xhr) item.xhr.abort();
+      if (item.jobId) fetch(`/api/jobs/${item.jobId}/cancel`, { method: 'POST', body: '{}' });
+      if (!item.xhr && !item.jobId) finish(item, 'err', 'ยกเลิกแล้ว');
+    });
+    return item;
+  }
+
+  function finish(item, kind, text) {
+    item.li.classList.add('done');
+    item.li.querySelector('button').hidden = true;
+    item.set(kind, text);
+  }
+
+  // Raw body upload: XHR is used for its upload progress events, which fetch does not expose.
+  function upload(item) {
+    return new Promise((resolve, reject) => {
+      const xhr = item.xhr = new XMLHttpRequest();
+      xhr.open('POST', `/api/mp3?name=${encodeURIComponent(item.file.name)}&bitrate=${item.bitrate}`);
+      xhr.upload.onprogress = (e) => e.lengthComputable && item.set('', `กำลังส่งไฟล์ ${Math.round(e.loaded / e.total * 100)}%`, e.loaded / e.total * 0.3);
+      xhr.onload = () => {
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch {}
+        if (xhr.status >= 400 || data.error) reject(new Error(data.error || 'อัปโหลดไม่สำเร็จ')); else resolve(data);
+      };
+      xhr.onerror = () => reject(new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'));
+      xhr.onabort = () => reject(new Error('ยกเลิกแล้ว'));
+      xhr.send(item.file);
+    });
+  }
+
+  async function convert(item) {
+    try {
+      const job = await upload(item);
+      item.xhr = null;
+      item.jobId = job.id;
+      for (;;) {
+        const res = await fetch('/api/jobs/' + item.jobId);
+        const j = await res.json();
+        if (j.status === 'done') {
+          const a = item.li.querySelector('a');
+          a.href = `/api/jobs/${j.id}/file`;
+          a.hidden = false;
+          finish(item, 'ok', `${j.file} · ${sizeText(j.size)}`);
+          fx.ripple();
+          return;
+        }
+        if (j.status === 'error' || j.status === 'cancelled') throw new Error(j.error || 'ไม่สำเร็จ');
+        const extra = [j.speed && 'เร็ว ' + j.speed, j.eta != null && 'เหลือ ' + clock(j.eta)].filter(Boolean).join(' · ');
+        item.set('', `กำลังแปลง ${Math.round(j.progress * 100)}%${extra ? ' · ' + extra : ''}`, 0.3 + j.progress * 0.7);
+        await sleep(400);
+      }
+    } catch (err) {
+      finish(item, 'err', err.message);
+    }
+  }
+
+  async function pump() {
+    if (running) return;
+    running = true;
+    fx.energy(2.4);
+    while (queue.length) {
+      const item = queue.shift();
+      if (!item.cancelled) await convert(item);
+    }
+    running = false;
+    fx.energy(1);
+  }
+
+  function add(files) {
+    for (const f of files) queue.push(addRow(f));
+    pump();
+  }
+
+  $('file').addEventListener('change', (e) => { add([...e.target.files]); e.target.value = ''; });
+  for (const ev of ['dragenter', 'dragover']) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); fx.energy(2.4); });
+  for (const ev of ['dragleave', 'drop']) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); if (!running) fx.energy(1); });
+  drop.addEventListener('drop', (e) => add([...e.dataTransfer.files]));
+  // a file dropped outside the zone should not navigate away from the page
+  for (const ev of ['dragover', 'drop']) window.addEventListener(ev, (e) => e.preventDefault());
+
+  fetch('/api/health').then((r) => r.json()).then((h) => {
+    if (!h.ffmpeg) { $('status').className = 'msg err'; $('status').textContent = 'ไม่พบ ffmpeg — ติดตั้งด้วย: pip install -r requirements.txt'; }
+  }).catch(() => {
+    $('status').className = 'msg err';
+    $('status').textContent = 'หน้านี้ต้องเปิดผ่านเซิร์ฟเวอร์ — รัน  python server.py  แล้วเปิด http://localhost:5173/mp3.html';
+  });
+</script>
+<script type="module" src="scene.js"></script>
+</body>
+</html>

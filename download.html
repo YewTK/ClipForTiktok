@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip Downloader By GodYew007</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  /* link bar with the same rotating rim as the Smooth drop zone */
+  #lookup {
+    border-radius: 999px; padding: 2px;
+    background: conic-gradient(from var(--spin), var(--cyan), transparent 25%, transparent 50%, var(--red), transparent 75%, transparent 100%, var(--cyan));
+    animation: spin 6s linear infinite; transition: filter .25s ease;
+  }
+  #lookup:focus-within { filter: drop-shadow(0 0 18px rgba(37, 244, 238, .3)) drop-shadow(0 0 18px rgba(254, 44, 85, .25)); animation-duration: 1.8s; }
+  @keyframes spin { to { --spin: 360deg; } }
+  .bar { display: flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px; background: rgba(8, 8, 13, .94); }
+  .bar input {
+    flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--text); font: 400 16px/1.4 "Prompt", system-ui, sans-serif; padding: 8px 12px;
+  }
+  .bar input::placeholder { color: #75738a; }
+  .bar button {
+    flex: none; border: 0; cursor: pointer; color: #fff; font: 600 15px/1 "Prompt", system-ui, sans-serif; border-radius: 999px; padding: 12px 18px;
+    transition: background .2s ease, opacity .2s ease;
+  }
+  #paste { background: rgba(255, 255, 255, .08); }
+  #paste:hover { background: rgba(255, 255, 255, .14); }
+  #find { background: linear-gradient(100deg, #12c9c4, #7b5cff); }
+  #find:disabled { opacity: .5; cursor: default; }
+
+  #status { margin: 14px 8px 0; min-height: 0; }
+  #status:empty { display: none; }
+
+  .reveal { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s cubic-bezier(.2, .8, .2, 1); }
+  .reveal.show { grid-template-rows: 1fr; }
+  .reveal > div { overflow: hidden; }
+
+  .clip { display: flex; gap: 14px; align-items: center; margin: 20px 4px 18px; }
+  .clip img { flex: none; width: 120px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; background: rgba(255, 255, 255, .06); }
+  .clip img[hidden] { display: none; }
+  .clip .t { font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .clip .m { color: var(--muted); font-size: 13px; font-weight: 300; margin-top: 4px; }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 4px 10px; flex-wrap: wrap; }
+  .toolbar h2 { font-size: 14px; font-weight: 500; color: var(--muted); margin: 0; }
+  .seg { display: flex; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); }
+  .seg button {
+    border: 0; background: none; color: var(--muted); font: 500 13px/1 "Prompt", system-ui, sans-serif; padding: 7px 12px; border-radius: 999px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: rgba(255, 255, 255, .12); color: #fff; }
+  .seg.kind button { font-size: 14px; font-weight: 600; padding: 8px 14px; }
+  .seg.kind button[aria-pressed="true"] { background: linear-gradient(100deg, rgba(37, 244, 238, .3), rgba(254, 44, 85, .3)); }
+  .seg[hidden] { display: none; }
+
+  #options { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: 340px; overflow-y: auto; padding: 2px; margin-bottom: 14px; }
+  .opt {
+    position: relative; display: flex; flex-direction: column; gap: 2px; cursor: pointer; padding: 12px 14px; border-radius: 16px;
+    background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .1); transition: border-color .2s ease, background .2s ease, transform .2s ease;
+  }
+  .opt:hover { background: rgba(255, 255, 255, .08); transform: translateY(-1px); }
+  .opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .opt:has(input:checked) {
+    border-color: transparent; background:
+      linear-gradient(rgba(14, 14, 22, .92), rgba(14, 14, 22, .92)) padding-box,
+      linear-gradient(120deg, var(--cyan), #7b5cff, var(--red)) border-box;
+    box-shadow: 0 8px 28px rgba(123, 92, 255, .28);
+  }
+  .opt:has(input:focus-visible) { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .opt .res { font: 800 20px/1.1 "Unbounded", "Prompt", sans-serif; letter-spacing: -.02em; }
+  .opt .res small { font: 600 11px/1 "Prompt", sans-serif; color: var(--muted); margin-left: 6px; letter-spacing: 0; vertical-align: 3px; }
+  .opt .fps { font-weight: 500; font-size: 14px; }
+  .opt .fps.hi { color: var(--cyan); }
+  .opt .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .tag { font-style: normal; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 255, .08); color: #d9d7e4; }
+  .tag.tt { background: rgba(37, 244, 238, .14); color: var(--cyan); }
+  .tag.hdr { background: rgba(255, 197, 107, .14); color: var(--warn); }
+  .tag.top { background: rgba(254, 44, 85, .18); color: #ff8aa1; }
+  .opt .size { color: var(--muted); font-size: 12px; font-weight: 300; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .convert {
+    display: flex; gap: 12px; align-items: flex-start; cursor: pointer; padding: 12px 14px; margin-bottom: 14px; border-radius: 16px;
+    background: rgba(255, 197, 107, .06); border: 1px solid rgba(255, 197, 107, .2);
+  }
+  .convert[hidden] { display: none; }
+  .convert input { accent-color: var(--cyan); width: 18px; height: 18px; margin: 3px 0 0; flex: none; }
+  .convert b { font-weight: 600; display: block; }
+  .convert span { color: var(--muted); font-size: 13px; font-weight: 300; }
+
+  .stage { display: flex; justify-content: space-between; gap: 10px; margin: 20px 4px 8px; font-weight: 500; }
+  .stage span:last-child { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .track { height: 10px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; margin: 0 4px 10px; }
+  .fill {
+    height: 100%; width: 0; border-radius: inherit; transition: width .35s ease;
+    background: linear-gradient(90deg, var(--cyan), #7b5cff, var(--red)); background-size: 200% 100%; animation: flow 2s linear infinite;
+  }
+  .fill.busy { width: 100% !important; opacity: .55; }
+  @keyframes flow { to { background-position: -200% 0; } }
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin: 0 4px 16px; font-variant-numeric: tabular-nums; }
+  .actions { display: grid; gap: 10px; }
+  .actions[hidden] { display: none; }
+
+  @media (max-width: 520px) {
+    .bar { flex-wrap: wrap; border-radius: 24px; }
+    #lookup { border-radius: 26px; }
+    .bar input { flex-basis: 100%; }
+    .bar button { flex: 1; }
+    .clip img { width: 88px; }
+    #options { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #lookup, .fill { animation: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="veil"></div>
+<nav class="nav"><a href="index.html">Smooth</a><a href="download.html" aria-current="page">ดาวน์โหลดคลิป</a><a href="mp3.html">แปลงเป็น MP3</a></nav>
+
+<main>
+  <div class="badge"><i></i>Downloader · YouTube · TikTok · IG</div>
+  <h1>Clip Downloader</h1>
+  <p class="sub">วางลิงก์ แล้วเลือกความละเอียดกับเฟรมเรตได้<br><b>สูงสุดเท่าที่คลิปนั้นมี</b> ไม่จำกัดขนาด ไม่บีบอัดซ้ำ</p>
+
+  <div class="panel">
+    <form id="lookup" autocomplete="off">
+      <div class="bar">
+        <input id="url" type="url" inputmode="url" placeholder="วางลิงก์ YouTube, TikTok, Instagram, Facebook, X…" aria-label="ลิงก์คลิป" required>
+        <button type="button" id="paste">วาง</button>
+        <button type="submit" id="find">ค้นหา</button>
+      </div>
+    </form>
+    <p class="msg" id="status" aria-live="polite"></p>
+
+    <div class="reveal" id="pick"><div>
+      <div class="clip">
+        <img id="thumb" alt="" referrerpolicy="no-referrer" hidden>
+        <div><div class="t" id="title"></div><div class="m" id="meta"></div></div>
+      </div>
+      <div class="toolbar">
+        <div class="seg kind" role="group" aria-label="ชนิดไฟล์">
+          <button type="button" data-kind="mp4" aria-pressed="true">MP4 วิดีโอ</button>
+          <button type="button" data-kind="mp3" aria-pressed="false">MP3 เสียง</button>
+        </div>
+        <div class="seg" id="filters" role="group" aria-label="ตัวกรอง">
+          <button type="button" data-filter="all" aria-pressed="true">ทั้งหมด</button>
+          <button type="button" data-filter="tiktok" aria-pressed="false">พร้อม TikTok</button>
+        </div>
+      </div>
+      <div id="options" role="radiogroup" aria-label="คุณภาพ"></div>
+      <label class="convert" id="convertBox" hidden>
+        <input type="checkbox" id="convert">
+        <div><b>แปลงเป็น H.265 ให้อัป TikTok / Smooth ได้</b><span id="convertHint"></span></div>
+      </label>
+      <button class="btn" id="go" type="button">ดาวน์โหลด</button>
+    </div></div>
+
+    <div class="reveal" id="job" aria-live="polite"><div>
+      <div class="stage"><span id="stage"></span><span id="pct"></span></div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <div class="stats" id="stats"></div>
+      <p class="msg" id="jobMsg"></p>
+      <div class="actions" id="running"><button class="btn ghost" id="cancel" type="button">ยกเลิก</button></div>
+      <div class="actions" id="done" hidden>
+        <a class="btn" id="save">บันทึกไฟล์</a>
+        <button class="btn ghost" id="smooth" type="button">ทำ Smooth แล้วบันทึก</button>
+        <a class="btn" id="smoothSave" hidden>บันทึกไฟล์ Smooth</a>
+      </div>
+    </div></div>
+  </div>
+
+  <ul class="pills">
+    <li>สูงสุด 8K · 120 fps ตามต้นฉบับ</li>
+    <li>MP4 · MP3 320 kbps</li>
+    <li>รองรับ 1,000+ เว็บ</li>
+    <li>เก็บไว้ในโฟลเดอร์ downloads</li>
+  </ul>
+</main>
+
+<script src="patcher.js"></script>
+<script>
+  // The 3D scene replaces these hooks once it loads; the page works without it.
+  window.fx = { energy() {}, ripple() {} };
+
+  const $ = (id) => document.getElementById(id);
+  const TIKTOK = new Set(['H.264', 'H.265']);
+  const ALIAS = { 4320: '8K', 2160: '4K', 1440: '2K' };
+  const MP3_RATES = [320, 256, 192, 128];
+  let clip = null, kind = 'mp4', filter = 'all', jobId = null, poll = null, smoothUrl = null, encoder;
+
+  const sizeText = (n) => !n ? '' : n >= 1e9 ? (n / 1e9).toFixed(2) + ' GB' : (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + ' MB';
+  const clock = (s) => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
+
+  function setMsg(el, kind, text) { el.className = 'msg ' + kind; el.textContent = text; }
+
+  async function api(path, body) {
+    const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+    const data = await res.json().catch(() => ({ error: 'เซิร์ฟเวอร์ตอบกลับผิดรูปแบบ' }));
+    if (!res.ok || data.error) throw new Error(data.error || res.statusText);
+    return data;
+  }
+
+  // ---------------------------------------------------------------- lookup
+
+  $('paste').addEventListener('click', async () => {
+    try { $('url').value = (await navigator.clipboard.readText()).trim(); } catch { $('url').focus(); return; }
+    if ($('url').value) $('lookup').requestSubmit();
+  });
+  $('url').addEventListener('paste', () => setTimeout(() => { if (/^https?:\/\//.test($('url').value.trim())) $('lookup').requestSubmit(); }));
+
+  $('lookup').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = $('url').value.trim();
+    if (!url) return;
+    $('find').disabled = true;
+    $('pick').classList.remove('show');
+    setMsg($('status'), '', 'กำลังอ่านข้อมูลคลิป…');
+    fx.energy(2.2);
+    try {
+      clip = await api('/api/info', { url });
+      $('status').textContent = '';
+      showClip();
+    } catch (err) {
+      setMsg($('status'), 'err', err.message);
+    }
+    $('find').disabled = false;
+    fx.energy(1);
+  });
+
+  function showClip() {
+    $('title').textContent = clip.title || clip.url;
+    $('meta').textContent = [clip.platform, clip.uploader, clip.duration && clock(clip.duration)].filter(Boolean).join(' · ');
+    $('thumb').hidden = !clip.thumbnail;
+    if (clip.thumbnail) $('thumb').src = clip.thumbnail;
+    renderOptions();
+    $('pick').classList.add('show');
+  }
+
+  // MP3 choices are made server-side from the best audio stream, so the size is estimated from the bitrate.
+  const mp3Options = () => MP3_RATES.map((br) => ({
+    id: 'mp3-' + br, mp3: true, bitrate: br, codec: 'MP3', label: `MP3 ${br}k`, kbps: br,
+    size: clip.duration ? br * 125 * clip.duration : null,
+  }));
+  const currentOptions = () => kind === 'mp3' ? mp3Options() : clip.options.filter((o) => filter === 'all' || o.tiktok);
+
+  function renderOptions(keep) {
+    const topVideo = clip.options[0];
+    const cards = currentOptions().map((o) => {
+      const label = document.createElement('label');
+      label.className = 'opt';
+      const input = document.createElement('input');
+      input.type = 'radio'; input.name = 'q'; input.value = o.id;
+      const res = document.createElement('span'); res.className = 'res';
+      const fps = document.createElement('span'); fps.className = 'fps';
+      const tags = document.createElement('span'); tags.className = 'tags';
+      const tag = (text, cls) => { const t = document.createElement('em'); t.className = 'tag ' + (cls || ''); t.textContent = text; tags.append(t); };
+      if (o.mp3) {
+        res.textContent = o.bitrate;
+        const s = document.createElement('small'); s.textContent = 'kbps'; res.append(s);
+        fps.textContent = o.bitrate === 320 ? 'คุณภาพสูงสุดของ MP3' : o.bitrate >= 192 ? 'คุณภาพดี' : 'ไฟล์เล็ก';
+        if (o.bitrate === 320) tag('สูงสุด', 'top');
+        tag('MP3', 'tt');
+      } else {
+        res.textContent = o.side + 'p';
+        if (ALIAS[o.side]) { const s = document.createElement('small'); s.textContent = ALIAS[o.side]; res.append(s); }
+        if (o.fps > 30) fps.className += ' hi';
+        fps.textContent = o.fps ? o.fps + ' fps' : 'fps ไม่ระบุ';
+        if (o === topVideo) tag('สูงสุด', 'top');
+        tag(o.codec, o.tiktok ? 'tt' : '');
+        if (o.hdr) tag('HDR', 'hdr');
+      }
+      const size = document.createElement('span'); size.className = 'size';
+      size.textContent = [o.size && '≈ ' + sizeText(o.size), !o.mp3 && o.kbps && (o.kbps >= 1000 ? (o.kbps / 1000).toFixed(1) + ' Mbps' : o.kbps + ' kbps')].filter(Boolean).join(' · ');
+      label.append(input, res, fps, tags, size);
+      return label;
+    });
+    $('options').replaceChildren(...cards);
+    const radios = [...$('options').querySelectorAll('input')];
+    if (radios.length) (radios.find((r) => r.value === keep) || radios[0]).checked = true;
+    onPick();
+  }
+
+  const picked = () => currentOptions().find((o) => o.id === ($('options').querySelector('input:checked') || {}).value);
+
+  async function onPick() {
+    const o = picked();
+    $('go').disabled = !o;
+    if (!o) { $('convertBox').hidden = true; $('go').textContent = 'ไม่มีคุณภาพที่ตรงตัวกรอง'; return; }
+    const needs = !o.mp3 && !o.tiktok;
+    $('convertBox').hidden = !needs;
+    $('go').textContent = `ดาวน์โหลด ${o.label}${o.size ? ' · ' + sizeText(o.size) : ''}`;
+    if (needs && encoder === undefined) {
+      encoder = null;
+      $('convertHint').textContent = 'กำลังตรวจตัวเข้ารหัส…';
+      encoder = await api('/api/encoder').catch(() => ({}));
+    }
+    if (needs) {
+      $('convertHint').textContent = `${o.codec} อัป TikTok ได้แต่ Smooth ใช้ไม่ได้ · เข้ารหัสใหม่ด้วย ${encoder && encoder.name || 'ffmpeg'} คุณภาพสูง (ไฟล์ต้นฉบับจะถูกแทนที่)`;
+    }
+  }
+  $('options').addEventListener('change', onPick);
+
+  function press(group, button) {
+    for (const x of group.querySelectorAll('button')) x.setAttribute('aria-pressed', x === button);
+  }
+  for (const b of document.querySelectorAll('.seg.kind button')) {
+    b.addEventListener('click', () => {
+      kind = b.dataset.kind;
+      press(b.parentElement, b);
+      $('filters').hidden = kind === 'mp3';
+      renderOptions();
+    });
+  }
+  for (const b of $('filters').querySelectorAll('button')) {
+    b.addEventListener('click', () => {
+      filter = b.dataset.filter;
+      press($('filters'), b);
+      const cur = picked();
+      renderOptions(cur && cur.id);
+    });
+  }
+
+  // ---------------------------------------------------------------- download job
+
+  $('go').addEventListener('click', async () => {
+    const o = picked();
+    if (!o) return;
+    $('go').disabled = true;
+    try {
+      const job = await api('/api/download', {
+        token: clip.token, option: o.mp3 ? 'mp3' : o.id, bitrate: o.bitrate, convert: !$('convertBox').hidden && $('convert').checked,
+      });
+      jobId = job.id;
+      startJobView();
+      render(job);
+      poll = setInterval(tick, 500);
+    } catch (err) {
+      setMsg($('status'), 'err', err.message);
+      $('go').disabled = false;
+    }
+  });
+
+  function startJobView() {
+    $('pick').classList.remove('show');
+    $('job').classList.add('show');
+    $('running').hidden = false; $('done').hidden = true;
+    $('smooth').hidden = false; $('smooth').disabled = false; $('smoothSave').hidden = true;
+    $('jobMsg').textContent = '';
+    fx.energy(2.4);
+  }
+
+  async function tick() {
+    try { render(await api('/api/jobs/' + jobId)); } catch (err) { stop(); setMsg($('jobMsg'), 'err', err.message); }
+  }
+
+  function stop() { clearInterval(poll); poll = null; fx.energy(1); $('go').disabled = false; }
+
+  const STATUS = { queued: 'เตรียมดาวน์โหลด', downloading: 'กำลังดาวน์โหลด', merging: 'กำลังรวมไฟล์', converting: 'กำลังแปลงไฟล์', done: 'เสร็จแล้ว', error: 'ไม่สำเร็จ', cancelled: 'ยกเลิกแล้ว' };
+
+  function render(j) {
+    const busy = j.status === 'queued' || j.status === 'merging';
+    $('stage').textContent = STATUS[j.status] + (j.stage ? ' · ' + j.stage : '');
+    $('pct').textContent = busy || j.status === 'error' ? '' : Math.round(j.progress * 100) + '%';
+    $('fill').classList.toggle('busy', busy);
+    $('fill').style.width = (j.status === 'done' ? 100 : j.progress * 100) + '%';
+    const speed = typeof j.speed === 'number' ? (j.speed / 1e6).toFixed(1) + ' MB/s' : j.speed;
+    $('stats').textContent = [
+      speed && 'ความเร็ว ' + speed,
+      j.eta != null && j.status !== 'done' && 'เหลือ ' + clock(j.eta),
+      (j.size || j.total) && 'ขนาด ' + sizeText(j.size || j.total),
+    ].filter(Boolean).join('   ·   ');
+
+    if (j.status === 'done') {
+      stop();
+      $('running').hidden = true; $('done').hidden = false;
+      $('save').href = `/api/jobs/${j.id}/file`;
+      const smoothable = /\.(mp4|mov)$/i.test(j.file) && TIKTOK.has(j.codec);
+      $('smooth').hidden = !smoothable;
+      setMsg($('jobMsg'), 'ok', `${j.file}\nบันทึกไว้ในโฟลเดอร์ downloads แล้ว — กดปุ่มเพื่อบันทึกไปที่อื่น` + (smoothable || j.codec === 'MP3' ? '' : `\n(${j.codec} ทำ Smooth ไม่ได้ — ต้องเป็น H.264/H.265 ใน MP4)`));
+      $('pick').classList.add('show');  // ready for another quality or the MP3 of the same clip
+      fx.ripple();
+    } else if (j.status === 'error' || j.status === 'cancelled') {
+      stop();
+      $('running').hidden = true;
+      setMsg($('jobMsg'), j.status === 'error' ? 'err' : 'warn', j.error || 'ยกเลิกแล้ว');
+      $('pick').classList.add('show');
+    }
+  }
+
+  $('cancel').addEventListener('click', () => { if (jobId) api(`/api/jobs/${jobId}/cancel`, {}).catch(() => {}); });
+
+  // Smooth the finished file right here with the same patcher the Smooth page uses.
+  $('smooth').addEventListener('click', async () => {
+    $('smooth').disabled = true;
+    setMsg($('jobMsg'), '', 'กำลังทำ Smooth…');
+    fx.energy(2.4);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/file`);
+      if (!res.ok) throw new Error('โหลดไฟล์จากเซิร์ฟเวอร์ไม่สำเร็จ');
+      const name = decodeURIComponent((res.headers.get('Content-Disposition') || '').split("UTF-8''")[1] || 'clip.mp4');
+      const { blob } = await TikTokSmooth.patchFile(await res.blob());
+      if (smoothUrl) URL.revokeObjectURL(smoothUrl);
+      const a = $('smoothSave');
+      a.href = smoothUrl = URL.createObjectURL(blob);
+      a.download = name.replace(/\.(mp4|mov)$/i, '') + '-smooth.mp4';
+      a.hidden = false;
+      $('smooth').hidden = true;
+      setMsg($('jobMsg'), 'ok', 'Smooth เรียบร้อย — ภาพและเสียงไม่ถูกเข้ารหัสใหม่');
+      a.click();
+      fx.ripple();
+    } catch (err) {
+      setMsg($('jobMsg'), 'err', err.message || String(err));
+      $('smooth').disabled = false;
+    }
+    fx.energy(1);
+  });
+
+  api('/api/health').then((h) => {
+    if (!h.ffmpeg) setMsg($('status'), 'warn', 'ไม่พบ ffmpeg — คลิปที่แยกภาพ/เสียง (YouTube 1080p ขึ้นไป) จะรวมไฟล์ไม่ได้\nติดตั้งด้วย: pip install -r requirements.txt');
+  }).catch(() => {
+    setMsg($('status'), 'err', 'หน้านี้ต้องเปิดผ่านเซิร์ฟเวอร์ — รัน  python server.py  แล้วเปิด http://localhost:5173/download.html');
+    $('find').disabled = true;
+  });
+</script>
+<script type="module" src="scene.js"></script>
+</body>
+</html>
